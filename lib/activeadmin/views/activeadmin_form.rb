@@ -9,27 +9,33 @@ module ActiveAdmin
         id_lng = args[:id_lng] || "#{class_name}_lng"
         height = args[:height] || 400
         loading_map = args[:loading_map].nil? ? true : args[:loading_map]
+        api_key = args[:api_key]
 
         case map
         when :yandex
-          insert_tag(YandexMapProxy, form_builder, lang, id_lat, id_lng, height, loading_map)
+          insert_tag(YandexMapProxy, form_builder, lang, id_lat, id_lng, height, loading_map, '')
         when :google
-          insert_tag(GoogleMapProxy, form_builder, lang, id_lat, id_lng, height, loading_map)
+          api_key_param = if api_key.present?
+                            "&key=#{api_key}"
+                          else
+                            ''
+                          end
+          insert_tag(GoogleMapProxy, form_builder, lang, id_lat, id_lng, height, loading_map, api_key_param)
         else
-          insert_tag(GoogleMapProxy, form_builder, lang, id_lat, id_lng, height, loading_map)
+          insert_tag(GoogleMapProxy, form_builder, lang, id_lat, id_lng, height, loading_map, '')
         end
       end
     end
 
     class LatlngProxy < FormtasticProxy
       def build(form_builder, *args, &block)
-        @lang, @id_lat, @id_lng, @height, @loading_map = *args
+        @lang, @id_lat, @id_lng, @height, @loading_map, @api_key_param = *args
       end
     end
 
     class GoogleMapProxy < LatlngProxy
       def to_s
-        loading_map_code = @loading_map ? "<script src=\"https://maps.googleapis.com/maps/api/js?language=#{@lang}&callback=googleMapObject.init\" async defer></script>" : ''
+        loading_map_code = @loading_map ? "<script src=\"https://maps.googleapis.com/maps/api/js?language=#{@lang}#{@api_key_param}&callback=googleMapObject.init\" async defer></script>" : ''
         "<li>" \
         "#{loading_map_code}" \
         "<div id=\"google_map\" style=\"height: #{@height}px\"></div>" \
@@ -59,7 +65,7 @@ module ActiveAdmin
                 center: googleMapObject.coords,
                 zoom: 12
               });
-              
+
               var latLngCoord = new google.maps.LatLng(googleMapObject.coords.lat, googleMapObject.coords.lng);
               googleMapObject.marker = new google.maps.Marker({
                 position: latLngCoord,
@@ -118,12 +124,12 @@ module ActiveAdmin
               yandexMapObject.placemark = new ymaps.Placemark( yandexMapObject.coords, {}, { preset: \"twirl#redIcon\", draggable: true } );
               yandexMapObject.map.geoObjects.add(yandexMapObject.placemark);
 
-              yandexMapObject.placemark.events.add(\"dragend\", function (e) {      
+              yandexMapObject.placemark.events.add(\"dragend\", function (e) {
                 yandexMapObject.coords = this.geometry.getCoordinates();
                 yandexMapObject.saveCoordinates();
               }, yandexMapObject.placemark);
 
-              yandexMapObject.map.events.add(\"click\", function (e) {        
+              yandexMapObject.map.events.add(\"click\", function (e) {
                 yandexMapObject.coords = e.get(\"coords\");
                 yandexMapObject.saveCoordinates();
                 yandexMapObject.placemark.geometry.setCoordinates(yandexMapObject.coords);
